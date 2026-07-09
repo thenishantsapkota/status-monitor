@@ -2,9 +2,10 @@ name: Status Monitor
 
 on:
   schedule:
-    # Every 15 minutes (UTC). GitHub's cron granularity is 5 min and runs are
-    # best-effort — they can be delayed several minutes under load.
-    - cron: "*/15 * * * *"
+    # ~Every 15 minutes (UTC), on odd offsets to dodge the :00/:15/:30/:45
+    # stampede — GitHub services off-peak cron slots more reliably. Runs are
+    # still best-effort and can be delayed or dropped under load.
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch: {}  # lets you trigger it manually from the Actions tab
 
 permissions:
