@@ -1,7 +1,7 @@
 {
   "github": {
     "indicator": "minor",
-    "description": "Partially Degraded Service"
+    "description": "Minor Service Outage"
   },
   "claude": {
     "indicator": "none",
