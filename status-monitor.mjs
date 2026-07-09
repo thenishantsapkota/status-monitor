@@ -27,6 +27,7 @@ const SERVICES = [
     key: "github",
     name: "GitHub",
     api: "https://www.githubstatus.com/api/v2/status.json",
+    incidentsApi: "https://www.githubstatus.com/api/v2/incidents/unresolved.json",
     page: "https://www.githubstatus.com",
     logo: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
   },
@@ -34,6 +35,7 @@ const SERVICES = [
     key: "claude",
     name: "Anthropic / Claude",
     api: "https://status.claude.com/api/v2/status.json",
+    incidentsApi: "https://status.claude.com/api/v2/incidents/unresolved.json",
     page: "https://status.claude.com",
     logo: "https://claude.ai/images/claude_app_icon.png",
   },
@@ -71,6 +73,46 @@ async function fetchStatus(svc) {
   }
 }
 
+// Fetch unresolved incidents for services that expose a statuspage incidents
+// endpoint. Returns [] on any failure or when the service has no such endpoint.
+async function fetchIncidents(svc) {
+  if (!svc.incidentsApi) return [];
+  try {
+    const res = await fetch(svc.incidentsApi, {
+      headers: { "User-Agent": USER_AGENT },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return Array.isArray(data.incidents) ? data.incidents : [];
+  } catch (err) {
+    console.error(`${svc.name}: failed to fetch incidents — ${err.message}`);
+    return [];
+  }
+}
+
+// Discord embed field values cap at 1024 chars; names at 256.
+function truncate(str, max) {
+  if (!str) return "";
+  return str.length > max ? str.slice(0, max - 1) + "…" : str;
+}
+
+// Turn unresolved incidents into embed fields: one per incident with its
+// current status and the latest update body.
+function incidentFields(incidents) {
+  return incidents.slice(0, 5).map((inc) => {
+    const latest = inc.incident_updates?.[0];
+    const parts = [`**${inc.status}** · impact: ${inc.impact}`];
+    if (latest?.body) parts.push(latest.body);
+    if (inc.shortlink) parts.push(inc.shortlink);
+    return {
+      name: truncate(`🔧 ${inc.name}`, 256),
+      value: truncate(parts.join("\n"), 1024),
+      inline: false,
+    };
+  });
+}
+
 async function loadState() {
   try {
     return JSON.parse(await readFile(STATE_FILE, "utf8"));
@@ -83,18 +125,20 @@ async function saveState(state) {
   await writeFile(STATE_FILE, JSON.stringify(state, null, 2) + "\n");
 }
 
-function buildEmbed(svc, prev, cur) {
+function buildEmbed(svc, prev, cur, incidents = []) {
   const color = SEVERITY_COLORS[cur.indicator] ?? 15158332;
   const previously = prev ? prev.description : "operational (baseline)";
+  const fields = [
+    { name: "Severity", value: cur.indicator, inline: true },
+    { name: "Previously", value: previously, inline: true },
+  ];
+  if (incidents.length) fields.push(...incidentFields(incidents));
   return {
     author: { name: svc.name, url: svc.page, icon_url: svc.logo },
     title: cur.description,
     url: svc.page,
     thumbnail: { url: svc.logo },
-    fields: [
-      { name: "Severity", value: cur.indicator, inline: true },
-      { name: "Previously", value: previously, inline: true },
-    ],
+    fields,
     color,
     footer: { text: "Status monitor" },
   };
@@ -134,7 +178,12 @@ async function main() {
     console.log(`${svc.name}: ${cur.indicator} — ${cur.description}`);
 
     if (cur.indicator !== prevIndicator) {
-      embeds.push(buildEmbed(svc, prev, cur));
+      // Only fetch incident detail when we're actually posting, and only for
+      // services that expose the endpoint — "if anything" attaches nothing when
+      // there are no unresolved incidents.
+      const incidents = await fetchIncidents(svc);
+      if (incidents.length) console.log(`${svc.name}: ${incidents.length} unresolved incident(s).`);
+      embeds.push(buildEmbed(svc, prev, cur, incidents));
       changedIndicators.push(cur.indicator);
     }
 
