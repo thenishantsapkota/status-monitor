@@ -14,6 +14,13 @@
  * No dependencies — uses Node's built-in fetch (Node 18+).
  */
 import { readFile, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+
+// Load a local .env when running outside CI (in CI the secret comes from the
+// environment). Uses Node's built-in loader (Node 20.6+); no dependency needed.
+if (existsSync(".env")) {
+  process.loadEnvFile(".env");
+}
 
 const SERVICES = [
   {
