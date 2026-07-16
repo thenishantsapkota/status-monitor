@@ -4,7 +4,7 @@
     "description": "All Systems Operational"
   },
   "claude": {
-    "indicator": "none",
-    "description": "All Systems Operational"
+    "indicator": "minor",
+    "description": "Minor Service Outage"
   }
 }
