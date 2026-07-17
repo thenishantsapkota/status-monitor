@@ -5,6 +5,6 @@
   },
   "claude": {
     "indicator": "minor",
-    "description": "Minor Service Outage"
+    "description": "Partially Degraded Service"
   }
 }
