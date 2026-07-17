@@ -1,10 +1,10 @@
 {
   "github": {
-    "indicator": "none",
-    "description": "All Systems Operational"
+    "indicator": "error",
+    "description": "Failed to fetch status: fetch failed"
   },
   "claude": {
-    "indicator": "none",
-    "description": "All Systems Operational"
+    "indicator": "minor",
+    "description": "Partially Degraded Service"
   }
 }
