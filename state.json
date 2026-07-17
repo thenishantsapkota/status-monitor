@@ -1,7 +1,7 @@
 {
   "github": {
-    "indicator": "error",
-    "description": "Failed to fetch status: fetch failed"
+    "indicator": "none",
+    "description": "All Systems Operational"
   },
   "claude": {
     "indicator": "minor",
