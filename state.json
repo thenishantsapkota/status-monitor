@@ -1,10 +1,10 @@
 {
   "github": {
-    "indicator": "none",
-    "description": "All Systems Operational"
-  },
-  "claude": {
     "indicator": "minor",
     "description": "Partially Degraded Service"
+  },
+  "claude": {
+    "indicator": "none",
+    "description": "All Systems Operational"
   }
 }
