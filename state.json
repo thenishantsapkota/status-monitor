@@ -4,7 +4,7 @@
     "description": "All Systems Operational"
   },
   "claude": {
-    "indicator": "major",
-    "description": "Partial System Outage"
+    "indicator": "none",
+    "description": "All Systems Operational"
   }
 }
