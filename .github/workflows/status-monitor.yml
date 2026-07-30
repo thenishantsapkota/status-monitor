@@ -36,6 +36,16 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git commit -m "chore: update status state [skip ci]"
-            git pull --rebase origin main
-            git push
+            for attempt in 1 2 3; do
+              git pull --rebase origin main
+              if git push; then
+                break
+              fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "Failed to push state after 3 attempts."
+                exit 1
+              fi
+              echo "Push rejected (attempt $attempt). Retrying..."
+              sleep 2
+            done
           fi
