@@ -1,10 +1,10 @@
 {
   "github": {
-    "indicator": "none",
-    "description": "All Systems Operational"
+    "indicator": "error",
+    "description": "Failed to fetch status: HTTP 405"
   },
   "claude": {
-    "indicator": "none",
-    "description": "All Systems Operational"
+    "indicator": "error",
+    "description": "Failed to fetch status: HTTP 405"
   }
 }
