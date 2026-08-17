@@ -4,7 +4,7 @@
     "description": "Partial System Outage"
   },
   "claude": {
-    "indicator": "minor",
-    "description": "Partially Degraded Service"
+    "indicator": "none",
+    "description": "All Systems Operational"
   }
 }
