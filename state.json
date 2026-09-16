@@ -1,7 +1,7 @@
 {
   "github": {
-    "indicator": "none",
-    "description": "All Systems Operational"
+    "indicator": "minor",
+    "description": "Minor Service Outage"
   },
   "claude": {
     "indicator": "none",
