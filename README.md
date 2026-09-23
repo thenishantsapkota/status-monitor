@@ -9,39 +9,42 @@ degrades, one when it recovers. No spam while an incident is ongoing.
 - [`status-monitor.mjs`](status-monitor.mjs) — fetches both `status.json` APIs
   (Node built-in `fetch`, no dependencies), compares against the last-known
   state in `state.json`, and posts to Discord on change.
-- [`.github/workflows/status-monitor.yml`](.github/workflows/status-monitor.yml)
-  — runs the script every 15 minutes and commits the updated `state.json` back
-  to the repo so change-detection survives across runs.
+- [`deploy/pi/install.sh`](deploy/pi/install.sh) — installs a systemd timer
+  that runs the script every 5 minutes on a Raspberry Pi (or any systemd Linux
+  box).
 
-## Setup
+## Run on a Raspberry Pi
 
-1. **Push this repo to GitHub.**
+```bash
+sudo apt update && sudo apt install -y git nodejs   # Node 18+ required
+git clone https://github.com/<you>/status-monitor.git ~/status-monitor
+cd ~/status-monitor
+echo 'DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...' > .env
+./deploy/pi/install.sh              # or: INTERVAL=15 ./deploy/pi/install.sh
+```
 
-2. **Add the webhook as a secret** (never commit it):
-   - Repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
-   - Name: `DISCORD_WEBHOOK_URL`
-   - Value: your Discord webhook URL
+The installer checks your Node version, creates `status-monitor.service` and
+`status-monitor.timer` for your user, enables them, and runs one check right away.
 
-3. **Enable Actions** if prompted (Actions tab). Scheduled workflows only run on
-   the **default branch**.
-
-4. **Test it:** Actions tab → *Status Monitor* → **Run workflow** (manual trigger).
+- **Logs:** `journalctl -u status-monitor -n 50`
+- **Next run:** `systemctl list-timers status-monitor.timer`
+- **Run now:** `sudo systemctl start status-monitor`
+- **Update:** `git pull`. No reinstall needed unless the repo moves or you change `INTERVAL`.
+- **Remove:** `./deploy/pi/uninstall.sh`
 
 ## Run locally
 
 ```bash
 export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
-node status-monitor.mjs   # requires Node 18+
+node status-monitor.mjs   # requires Node 18+; a .env next to the script is also picked up
 ```
 
 ## Notes
 
-- **Schedule:** `*/15 * * * *` (UTC). GitHub cron is best-effort and can be
-  delayed a few minutes; the minimum granularity is 5 minutes.
+- **State:** on the Pi it lives in `/var/lib/status-monitor/state.json`, outside
+  the repo. When run by hand it defaults to `state.json` next to the script
+  (override with `STATE_FILE`).
 - **First run** on a healthy service stays silent (baseline is treated as
   operational). You'll only be alerted on an actual change from that point on.
-- **Inactive repos:** GitHub disables scheduled workflows after 60 days with no
-  repo activity — the state commits usually keep it alive, but a push resets the
-  clock if needed.
-- **State commits** are authored by `github-actions[bot]` and tagged
-  `[skip ci]`.
+- **Missed runs:** if the Pi is off at a scheduled time, the timer catches up
+  on boot.

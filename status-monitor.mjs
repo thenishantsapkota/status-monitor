@@ -3,24 +3,45 @@
  * Check GitHub + Claude status pages and post a Discord alert only when a
  * service's status *changes* since the last run.
  *
- * State is kept in state.json (committed back by the workflow) so that during
- * an ongoing incident you get ONE alert on degradation and ONE on recovery,
- * rather than a message every run.
+ * State is kept in a JSON file (see STATE_FILE) so that during an ongoing
+ * incident you get ONE alert on degradation and ONE on recovery, rather than a
+ * message every run.
  *
  * Env:
  *   DISCORD_WEBHOOK_URL  (required)  Discord webhook to POST to.
- *   STATE_FILE           (optional)  Path to the state file. Default: state.json.
+ *   STATE_FILE           (optional)  Path to the state file. Default: state.json
+ *                                   next to this script.
  *
- * No dependencies — uses Node's built-in fetch (Node 18+).
+ * No dependencies — uses Node's built-in fetch (Node 18+). Runs on any
+ * always-on box (e.g. a Raspberry Pi) via deploy/pi/.
  */
-import { readFile, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-// Load a local .env when running outside CI (in CI the secret comes from the
-// environment). Uses Node's built-in loader (Node 20.6+); no dependency needed.
-if (existsSync(".env")) {
-  process.loadEnvFile(".env");
+// Resolve paths relative to this script, not the cwd, so it behaves the same
+// under cron/systemd (which run from / or $HOME) as it does from the repo.
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+
+// Load a local .env if present (otherwise the secret comes from the
+// environment). Uses Node's built-in loader on 20.6+, with a minimal fallback
+// for older Node (e.g. the nodejs package in Raspberry Pi OS). Variables that
+// are already set in the environment win.
+function loadEnv(path) {
+  if (!existsSync(path)) return;
+  if (typeof process.loadEnvFile === "function") {
+    process.loadEnvFile(path);
+    return;
+  }
+  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
+    const m = line.match(/^\s*(?:export\s+)?([\w.-]+)\s*=\s*(.*?)\s*$/);
+    if (!m || line.trimStart().startsWith("#")) continue;
+    const value = m[2].replace(/^(['"])(.*)\1$/, "$2");
+    if (process.env[m[1]] === undefined) process.env[m[1]] = value;
+  }
 }
+loadEnv(join(SCRIPT_DIR, ".env"));
 
 const SERVICES = [
   {
@@ -51,7 +72,7 @@ const SEVERITY_COLORS = {
   error: 10038562, // dark red (fetch failure)
 };
 
-const STATE_FILE = process.env.STATE_FILE || "state.json";
+const STATE_FILE = process.env.STATE_FILE || join(SCRIPT_DIR, "state.json");
 // Discord (Cloudflare) rejects requests with a default agent — send a real UA.
 const USER_AGENT = "status-monitor (https://github.com, 1.0)";
 
@@ -122,6 +143,7 @@ async function loadState() {
 }
 
 async function saveState(state) {
+  await mkdir(dirname(STATE_FILE), { recursive: true });
   await writeFile(STATE_FILE, JSON.stringify(state, null, 2) + "\n");
 }
 
